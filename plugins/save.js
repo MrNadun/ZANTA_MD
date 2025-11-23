@@ -1,87 +1,79 @@
-const { cmd, commands } = require("../command");
+const { cmd } = require("../command");
 
 cmd(
-  {
-    pattern: "save",
-    alias: ["resend"],
-    react: "💾",
-    desc: "Saves (Resends) a quoted Status or View Once media.",
-    category: "utility",
-    filename: __filename,
-  },
-  async (
-    zanta,
-    mek,
-    m,
     {
-      from,
-      quoted,
-      reply,
+        pattern: "save",
+        react: "✅",
+        desc: "Resend Status or One-Time View Media",
+        category: "general",
+        filename: __filename,
+    },
+    async (
+        zanta,
+        mek,
+        m,
+        {
+            from,
+            quoted,
+            reply,
+            // You can destructure more variables if needed, but 'quoted' is the key here
+        }
+    ) => {
+        try {
+            // Check if the user replied to a message
+            if (!quoted) {
+                return reply("*Please reply to the Status, One-Time View, or any Media message you want to save/resend!* 🧐");
+            }
+
+            // --- Check for Status Media (STORIES) ---
+            if (quoted.isStatus) {
+                // If it's a status, the media is available in the 'quoted' object
+                // Resend the media with a caption
+                
+                await zanta.copyNForward(from, quoted.fakeObj, { 
+                    caption: "*✅ Saved and Resent from Status!*",
+                    quoted: mek // Optional: quote the original 'save' message
+                });
+                
+                return reply("*Status media successfully resent!* 🥳");
+            }
+
+            // --- Check for One-Time View Media (OTV) ---
+            if (quoted.isViewOnce) {
+                // OTV media is a special type of message where the content is hidden.
+                // The library provides a way to extract the media from a View Once message (quoted.fakeObj).
+                
+                // Note: The message type (image/video) is in quoted.fakeObj.mtype
+                
+                await zanta.copyNForward(from, quoted.fakeObj, {
+                    caption: "*📸 Saved and Resent from One-Time View!*",
+                    quoted: mek // Optional: quote the original 'save' message
+                });
+                
+                return reply("*One-Time View media successfully saved and resent!* 💾");
+            }
+            
+            // --- Check for Regular Media (Image/Video/Audio/Document) ---
+            // This handles any other regular media in the chat that the user wants to resend.
+            if (quoted.mtype.includes('imageMessage') || 
+                quoted.mtype.includes('videoMessage') || 
+                quoted.mtype.includes('audioMessage') || 
+                quoted.mtype.includes('documentMessage')) {
+
+                await zanta.copyNForward(from, quoted.fakeObj, {
+                    caption: "*💾 Saved and Resent!*",
+                    quoted: mek
+                });
+
+                return reply("*Media successfully resent!* ✨");
+            }
+            
+            // If it's not a Status, OTV, or any recognized media type
+            return reply("*The replied message does not contain any Status, One-Time View, or recognizable Media!* 🤷‍♂️");
+
+        } catch (e) {
+            console.error(e);
+            reply(`*Error saving media:* ${e.message || e}`);
+        }
     }
-  ) => {
-    try {
-      // Check if a message is quoted
-      if (!quoted) {
-        return reply("*Please reply to the Status/View Once Photo/Video you want to save.* 💾");
-      }
-
-      // --- 1. Identify and Extract the Media Message ---
-      let mediaMsg = quoted.msg;
-      
-      // Handle View Once messages: The actual content is nested inside 'message'
-      if (quoted.msg && quoted.msg.viewOnce) {
-        mediaMsg = quoted.msg.message;
-      }
-      
-      // Determine the type of media and extract the relevant object
-      let mediaType = "";
-      let mediaData = null;
-      let caption = mediaMsg.caption || quoted.caption || "";
-
-      if (mediaMsg.imageMessage) {
-        mediaType = "image";
-        mediaData = mediaMsg.imageMessage;
-      } else if (mediaMsg.videoMessage) {
-        mediaType = "video";
-        mediaData = mediaMsg.videoMessage;
-      }
-      
-      // Check if a valid media type was found
-      if (!mediaData || !mediaType) {
-        return reply("*The quoted message is not a recognizable Photo, Video, or View Once media.* ☹️");
-      }
-      
-      // --- 2. Download the Media ---
-      
-      // We must pass the correct object to zanta.downloadMediaMessage
-      // In Baileys, the 'quoted' message object can usually download its own media.
-      // We rely on the existing zanta.downloadMediaMessage function to handle the quoted object correctly.
-      
-      const mediaBuffer = await zanta.downloadMediaMessage(quoted);
-      
-      if (!mediaBuffer) {
-          return reply("*Could not download media from the quoted message. Check if it's a recent status or media.* 🙁");
-      }
-
-      // --- 3. Resend the Media ---
-      
-      const messageOptions = {
-        caption: `*💾 Saved Media (${mediaType.toUpperCase()}):*\n${caption}`,
-      };
-      
-      // Resend the media
-      if (mediaType === "image") {
-        await zanta.sendMessage(from, { image: mediaBuffer, ...messageOptions }, { quoted: mek });
-      } else if (mediaType === "video") {
-        await zanta.sendMessage(from, { video: mediaBuffer, ...messageOptions }, { quoted: mek });
-      } 
-      
-      return reply("*Saved and Resent Successfully! 🙃✅*");
-      
-    } catch (e) {
-      console.error(e);
-      // More specific error message for debugging
-      reply(`*Error during save:* ${e.message || e}\n\n*Possible fix:* Try deleting session and reconnecting.`);
-    }
-  }
 );
