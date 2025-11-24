@@ -51,16 +51,16 @@ for (const [cat, cmds] of Object.entries(categories)) {
     const formattedCat = cat.charAt(0).toUpperCase() + cat.slice(1);
     
     // 1. Category Header (වෙන්කරනය)
-    menuText += `\n\n*══════ [ 📚 ${formattedCat.toUpperCase()} ] ══════*\n\n`;
+    menuText += `\n\n*══ [ 📚 ${formattedCat.toUpperCase()} ] ══*\n\n`;
     
     // 2. Commands එකතු කිරීම (නව Box Style එක)
     cmds.forEach(c => {
-        menuText += `╭──────●●►\n│⛩ Command ☛ .${c.pattern}\n│🏮 Use ☛ ${c.desc}\n╰──────●●►\n`;
+        menuText += `╭──────●●►\n│◻.${c.pattern}\n╰──────●●►\n`;
     });
 }
 
             // 4. Footer එක
-            menuText += "\n\n➖➖➖➖➖➖➖➖➖➖➖➖➖\n";
+            menuText += "\n\n➖➖➖➖➖➖➖➖➖➖➖➖\n";
             menuText += "> © 𝟐𝟎𝟐𝟓 | 𝐀𝐤𝐚𝐬𝐡 𝐊𝐚𝐯𝐢𝐧𝐝𝐮\n"; 
             
             // SEND IMAGE + MENU TEXT IN ONE MESSAGE
@@ -79,6 +79,7 @@ for (const [cat, cmds] of Object.entries(categories)) {
         }
     }
 );
+
 
 
 
