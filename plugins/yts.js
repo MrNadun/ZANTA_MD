@@ -48,7 +48,7 @@ ${formattedResults}
         from,
         {
           image: {
-            url: "https://github.com/Akashkavindu/ZANTA_MD/blob/main/images/ChatGPT%20Image%20Nov%2023,%202025,%2005_09_00%20AM.png?raw=true",
+            url: "https://raw.githubusercontent.com/Akashkavindu/ZANTA_MD/refs/heads/main/images/ChatGPT%20Image%20Nov%2023%2C%202025%2C%2005_09_00%20AM.png",
           },
           caption,
         },
