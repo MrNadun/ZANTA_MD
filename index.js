@@ -148,7 +148,17 @@ async function connectToWA() {
         let replyNumber = null;
 
         if (!isCmd && mek.quoted) {
-            const quotedMessage = mek.quoted.message?.extendedTextMessage?.text || mek.quoted.message?.imageMessage?.caption || mek.quoted.message?.conversation; // FIX: Read caption/text correctly
+            let quotedMessage = '';
+const quotedMsg = mek.quoted.message;
+if (quotedMsg) {
+    if (quotedMsg.extendedTextMessage) {
+        quotedMessage = quotedMsg.extendedTextMessage.text;
+    } else if (quotedMsg.imageMessage) {
+        quotedMessage = quotedMsg.imageMessage.caption;
+    } else if (quotedMsg.conversation) {
+        quotedMessage = quotedMsg.conversation;
+    }
+}
             const replyBody = body.trim(); // The content of the user's reply (e.g., '1')
 
             // Magic Text Check: The Menu message header must contain this text
