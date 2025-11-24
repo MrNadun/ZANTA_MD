@@ -144,27 +144,32 @@ async function connectToWA() {
         const reply = (text) => zanta.sendMessage(from, { text }, { quoted: mek });
 
         // ╔═════════ ADDED REPLY MENU CHECK ═════════╗
+       // ... (මෙහි ඉහළින්ම from, reply, body යනාදිය define කර තිබිය යුතුයි) ...
+
+        // ╔═════════ ADDED REPLY MENU CHECK ═════════╗
         let replyToMenu = false;
         let replyNumber = null;
 
         if (!isCmd && mek.quoted) {
             let quotedMessage = '';
-const quotedMsg = mek.quoted.message;
-if (quotedMsg) {
-    if (quotedMsg.extendedTextMessage) {
-        quotedMessage = quotedMsg.extendedTextMessage.text;
-    } else if (quotedMsg.imageMessage) {
-        quotedMessage = quotedMsg.imageMessage.caption;
-    } else if (quotedMsg.conversation) {
-        quotedMessage = quotedMsg.conversation;
-    }
-}
-            const replyBody = body.trim(); // The content of the user's reply (e.g., '1')
+            const quotedMsg = mek.quoted.message;
+            if (quotedMsg) {
+                if (quotedMsg.extendedTextMessage) {
+                    quotedMessage = quotedMsg.extendedTextMessage.text;
+                } else if (quotedMsg.imageMessage) {
+                    quotedMessage = quotedMsg.imageMessage.caption;
+                } else if (quotedMsg.conversation) {
+                    quotedMessage = quotedMsg.conversation;
+                }
+            }
 
-            // Magic Text Check: The Menu message header must contain this text
-            if (quotedMessage && quotedMessage.includes("Choose a menu option by replying with the number")) {
+            // 🚨 1. Magic Text Check (සරල කළ අනුවාදය)
+            // (menu.js හි Bold ඉවත් කර ඇති බවට උපකල්පනය කර ඇත)
+            if (quotedMessage && quotedMessage.includes("menu option by replying")) {
                 
-                // If the reply contains only a number (e.g., '1', '2')
+                const replyBody = body.trim(); // The content of the user's reply (e.g., '1')
+                
+                // 🚨 2. Reply Number Check (අංක පමණක් තිබේදැයි පරීක්ෂා කිරීම)
                 if (/^\d+$/.test(replyBody)) {
                     replyToMenu = true;
                     replyNumber = replyBody;
@@ -172,6 +177,8 @@ if (quotedMsg) {
             }
         }
         // ╚═════════════════════════════════════════╝
+
+        // ... (මෙහි පහළින් isCmd || replyToMenu block එක තිබිය යුතුයි) ...
 
         if (isCmd || replyToMenu) {
             
