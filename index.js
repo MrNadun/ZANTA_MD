@@ -11,7 +11,7 @@ const {
 const fs = require('fs');
 const P = require('pino');
 const express = require('express');
-const axios = require('axios'); // 👈 API Session Restore සඳහා මෙය අත්‍යවශ්‍යයි
+// const axios = require('axios'); // ❌ API Call Logic ඉවත් කළ නිසා axios අවශ්‍ය නැත
 const path = require('path');
 const { sms, downloadMediaMessage } = require('./lib/msg');
 const {
@@ -29,7 +29,7 @@ const ownerNumber = ['94743404814'];
 const authDir = path.join(__dirname, '/auth_info_baileys/');
 const credsPath = path.join(authDir, 'creds.json');
 
-// --- Session Restore Logic (API Call) ---
+// --- Session Restore Logic (Base64 Decode) ---
 async function ensureSessionFile() {
     if (!fs.existsSync(credsPath)) {
         if (!config.SESSION_ID) {
@@ -37,26 +37,11 @@ async function ensureSessionFile() {
             process.exit(1);
         }
 
-        const sessionIdKey = config.SESSION_ID;
-
-        console.log(`🔄 Session file not found. Attempting to fetch session data for key: ${sessionIdKey}`);
+        console.log("🔄 creds.json not found. Restoring session from Base64 string...");
 
         try {
-            // 💡 ඔබගේ Short Session ID එක Base64 Session JSON බවට පත් කරන API URL එක
-            // ...
-            const API_URL = `https://api.zenzapis.xyz/session/${sessionIdKey}`; 
-            // ...
-            
-            console.log(`Fetching session from API: ${API_URL}`);
-            
-            const { data } = await axios.get(API_URL);
-            
-            if (!data || !data.session) {
-                 throw new Error("Invalid response from session API: session data is missing.");
-            }
-            
-            // API Response එක Base64 String එකක් බවට සලකයි (Decode කරයි)
-            const sessionData = Buffer.from(data.session, 'base64').toString('utf-8');
+            // 👈 ඔබ Secrets වලට දැමූ දිගු Base64 String එක Decode කරයි
+            const sessionData = Buffer.from(config.SESSION_ID, 'base64').toString('utf-8');
             
             // auth_info_baileys folder එක සෑදීම
             if (!fs.existsSync(authDir)) {
@@ -66,13 +51,13 @@ async function ensureSessionFile() {
             // creds.json file එක ලිවීම
             fs.writeFileSync(credsPath, sessionData);
             
-            console.log("✅ Session restored via API and saved. Connecting bot...");
+            console.log("✅ Session restored from Base64. Connecting bot...");
             setTimeout(() => {
                 connectToWA();
             }, 1000);
 
         } catch (e) {
-            console.error("❌ Failed to restore session via API. Check SESSION_ID and API URL:", e.message || e);
+            console.error("❌ Failed to decode or save session file from Base64. Check if SESSION_ID is a valid Base64 string:", e.message || e);
             process.exit(1);
         }
     } else {
