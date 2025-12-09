@@ -1,6 +1,7 @@
 const { cmd, commands } = require("../command");
 const yts = require("yt-search");
 const { ytmp3 } = require("@vreden/youtube_scraper");
+const config = require("../config"); // BOT_NAME ලබා ගැනීමට
 
 cmd(
   {
@@ -45,9 +46,13 @@ cmd(
       const search = await yts(q);
       const data = search.videos[0];
       const url = data.url;
+      const botName = config.BOT_NAME || "ZANTA-MD"; 
 
       let desc = `
-Song downloader
+╭━─━─━─━─━─━─━─━╮
+┃*${botName} Song downloader*
+╰━─━─━─━─━─━─━─━╯
+
 🎬 *Title:* ${data.title}
 ⏱️ *Duration:* ${data.timestamp}
 📅 *Uploaded:* ${data.ago}
@@ -79,17 +84,6 @@ Song downloader
         {
           audio: { url: songData.download.url },
           mimetype: "audio/mpeg",
-        },
-        { quoted: mek }
-      );
-
-      await zanta.sendMessage(
-        from,
-        {
-          document: { url: songData.download.url },
-          mimetype: "audio/mpeg",
-          fileName: `${data.title}.mp3`,
-          caption: "🎶 *Your song is ready to be played!*",
         },
         { quoted: mek }
       );
