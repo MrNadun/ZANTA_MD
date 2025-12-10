@@ -6,8 +6,8 @@ cmd(
     {
         pattern: "get", 
         react: "📥",
-        desc: "Downloads the replied WhatsApp Status message (Image or Video). Use .ewannako, .daham, .dannako for same purpose.",
-        category: "download",
+        desc: "Download status",
+        category: "media",
         filename: __filename,
     },
     async (
