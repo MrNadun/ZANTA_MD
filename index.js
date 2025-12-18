@@ -21,6 +21,7 @@ const { commands, replyHandlers } = require("./command");
 // --- 📂 Import Reply Maps & DB Functions ---
 const { lastMenuMessage } = require("./plugins/menu");
 const { lastSettingsMessage } = require("./plugins/settings"); 
+const { lastHelpMessage } = require("./plugins/help"); // ✅ Help map එක එකතු කළා
 const { connectDB, getBotSettings, updateSetting } = require("./plugins/bot_db");
 
 // --- 🛠️ JID Decoder ---
@@ -191,6 +192,7 @@ async function connectToWA() {
         // --- 📩 REPLY LOGIC ---
         const isMenuReply = (m.quoted && lastMenuMessage && lastMenuMessage.get(from) === m.quoted.id);
         const isSettingsReply = (m.quoted && lastSettingsMessage && lastSettingsMessage.get(from) === m.quoted.id);
+        const isHelpReply = (m.quoted && lastHelpMessage && lastHelpMessage.get(from) === m.quoted.id); // ✅ Help reply එක හඳුනාගැනීම
 
         if (isSettingsReply && body && !isCmd && isOwner) {
             const input = body.trim().split(" ");
@@ -217,10 +219,13 @@ async function connectToWA() {
 
         // 2. Command Execution Logic
         let shouldExecuteMenu = (isMenuReply && body && !body.startsWith(prefix));
+        let shouldExecuteHelp = (isHelpReply && body && !body.startsWith(prefix)); // ✅ Help execute logic එක
 
-        if (isCmd || shouldExecuteMenu) {
-            const execName = shouldExecuteMenu ? 'menu' : commandName;
-            const execArgs = shouldExecuteMenu ? [body.trim().toLowerCase()] : args;
+        if (isCmd || shouldExecuteMenu || shouldExecuteHelp) {
+            // Help reply එකක් නම් 'help' command එකත්, Menu reply එකක් නම් 'menu' command එකත් ක්‍රියාත්මක කරයි
+            const execName = shouldExecuteHelp ? 'help' : (shouldExecuteMenu ? 'menu' : commandName);
+            const execArgs = (shouldExecuteHelp || shouldExecuteMenu) ? [body.trim().toLowerCase()] : args;
+
             const cmd = commands.find(c => c.pattern === execName || (c.alias && c.alias.includes(execName)));
 
             if (cmd) {
