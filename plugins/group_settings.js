@@ -1,114 +1,172 @@
 const { cmd } = require("../command");
 
-// --- 🛡️ Group Admin Check Logic ---
-// මචං, මෙතනදී index.js එකේ වගේම සරලව Admin ද නැද්ද කියලා බලනවා.
-async function checkAdmins(zanta, m, from, isGroup) {
-    if (!isGroup) return false;
-    const groupMetadata = await zanta.groupMetadata(from);
-    const participants = groupMetadata.participants;
-    const groupAdmins = participants.filter(p => p.admin !== null).map(p => p.id);
-    const botNumber = zanta.user.id.split(':')[0] + '@s.whatsapp.net';
-    
-    return {
-        isBotAdmin: groupAdmins.includes(botNumber),
-        isUserAdmin: groupAdmins.includes(m.sender),
-    };
-}
+// --- 🛠️ LID/JID ඇඩ්මින් ප්‍රශ්නය විසඳන Function එක ---
+const getLastDigits = (jid) => {
+    if (!jid) return "";
+    let clean = jid.split('@')[0].split(':')[0]; 
+    return clean.slice(-8); 
+};
 
-// --- MUTE COMMAND ---
+// --- 🛡️ PERMISSION CHECKER (අන්තිම ඉලක්කම් 8 පාවිච්චි කර ඇත) ---
+const checkPerms = (zanta, m, groupAdmins, isOwner, sender) => {
+    const adminDigitsList = (groupAdmins || []).map(ad => getLastDigits(ad));
+    const botDigits = getLastDigits(zanta.user.lid || zanta.user.id);
+    const userDigits = getLastDigits(m.senderLid || sender);
+
+    const isBotAdmin = adminDigitsList.includes(botDigits);
+    const isUserAdmin = adminDigitsList.includes(userDigits);
+
+    if (!isBotAdmin) return "bot_not_admin";
+    if (!(isOwner || isUserAdmin)) return "not_admin";
+    return "ok";
+};
+
+// --- 🔒 MUTE ---
 cmd({
-    pattern: "mute",
-    alias: ["close"],
-    react: "🔒",
-    desc: "Closes the group messages.",
-    category: "group",
-    filename: __filename,
-}, async (zanta, mek, m, { from, reply, isGroup }) => {
-    try {
-        if (!isGroup) return reply("❌ This is not a group!");
-        
-        const check = await checkAdmins(zanta, m, from, isGroup);
-        if (!check.isBotAdmin) return reply("❌ I need to be an **Admin** first!");
-        if (!check.isUserAdmin) return reply("❌ **You** must be an Admin to use this!");
+    pattern: "mute", alias: ["close"], react: "🔒", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, reply, isGroup, groupAdmins, sender, isOwner }) => {
+    if (!isGroup) return reply("❌ *Groups only.*");
+    const perm = checkPerms(zanta, m, groupAdmins, isOwner, sender);
+    if (perm === "bot_not_admin") return reply("❌ *මාව Admin කරන්න!*");
+    if (perm === "not_admin") return reply("❌ *ඔබ Admin කෙනෙක් නෙවෙයි!*");
 
-        await zanta.groupSettingUpdate(from, 'announcement');
-        return reply("✅ *Group Muted! Only Admins can send messages.*");
-    } catch (e) {
-        reply("❌ Error: " + e.message);
-    }
+    await zanta.groupSettingUpdate(from, 'announcement');
+    let desc = `\n╭━─━─━─━─━─━─━─━╮\n┃    *GROUP SETTINGS*\n╰━─━─━─━─━─━─━─━╯\n\n🔒 *Status:* Group Muted\n✅ *Action:* Success\n👤 *By:* @${sender.split('@')[0]}\n\n_Only admins can send messages now._`;
+    await zanta.sendMessage(from, { text: desc, mentions: [sender] }, { quoted: mek });
 });
 
-// --- UNMUTE COMMAND ---
+// --- 🔓 UNMUTE ---
 cmd({
-    pattern: "unmute",
-    alias: ["open"],
-    react: "🔓",
-    desc: "Opens the group messages.",
-    category: "group",
-    filename: __filename,
-}, async (zanta, mek, m, { from, reply, isGroup }) => {
-    try {
-        if (!isGroup) return reply("❌ This is not a group!");
-        
-        const check = await checkAdmins(zanta, m, from, isGroup);
-        if (!check.isBotAdmin) return reply("❌ I need to be an **Admin** first!");
-        if (!check.isUserAdmin) return reply("❌ **You** must be an Admin to use this!");
+    pattern: "unmute", alias: ["open"], react: "🔓", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, reply, isGroup, groupAdmins, sender, isOwner }) => {
+    if (!isGroup) return reply("❌ *Groups only.*");
+    const perm = checkPerms(zanta, m, groupAdmins, isOwner, sender);
+    if (perm === "bot_not_admin") return reply("❌ *මාව Admin කරන්න!*");
+    if (perm === "not_admin") return reply("❌ *ඔබ Admin කෙනෙක් නෙවෙයි!*");
 
-        await zanta.groupSettingUpdate(from, 'not_announcement');
-        return reply("✅ *Group Unmuted! Everyone can send messages.*");
-    } catch (e) {
-        reply("❌ Error: " + e.message);
-    }
+    await zanta.groupSettingUpdate(from, 'not_announcement');
+    let desc = `\n╭━─━─━─━─━─━─━─━╮\n┃    *GROUP SETTINGS*\n╰━─━─━─━─━─━─━─━╯\n\n🔓 *Status:* Group Unmuted\n✅ *Action:* Success\n👤 *By:* @${sender.split('@')[0]}\n\n_Everyone can send messages now._`;
+    await zanta.sendMessage(from, { text: desc, mentions: [sender] }, { quoted: mek });
 });
 
-// --- INVITE LINK COMMAND ---
+// --- 🚫 KICK ---
 cmd({
-    pattern: "invite",
-    alias: ["link"],
-    react: "🔗",
-    desc: "Get group invite link.",
-    category: "group",
-    filename: __filename,
-}, async (zanta, mek, m, { from, reply, isGroup }) => {
-    try {
-        if (!isGroup) return reply("❌ This is not a group!");
-        
-        const check = await checkAdmins(zanta, m, from, isGroup);
-        if (!check.isBotAdmin) return reply("❌ I need to be an **Admin** to get the link!");
+  pattern: "kick", react: "🚫", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, reply, isGroup, groupAdmins, sender, isOwner, q }) => {
+  try {
+      if (!isGroup) return reply("❌ *Groups only.*");
+      const perm = checkPerms(zanta, m, groupAdmins, isOwner, sender);
+      if (perm === "bot_not_admin") return reply("❌ *මාව Admin කරන්න!*");
+      if (perm === "not_admin") return reply("❌ *ඔබ Admin කෙනෙක් නෙවෙයි!*");
 
-        const code = await zanta.groupInviteCode(from);
-        return reply(`*🔗 Group Invite Link:*\nhttps://chat.whatsapp.com/${code}`);
-    } catch (e) {
-        reply("❌ Error: " + e.message);
-    }
+      let user = m.mentionedJid[0] || (m.quoted ? m.quoted.sender : null);
+      if (!user && q) user = q.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+      if (!user) return reply("❌ *Tag, Reply හෝ අංකයක් දෙන්න.*");
+
+      await zanta.groupParticipantsUpdate(from, [user], "remove");
+      let desc = `\n╭━─━─━─━─━─━─━─━╮\n┃    *MEMBER REMOVED*\n╰━─━─━─━─━─━─━─━╯\n\n👤 *User:* @${user.split('@')[0]}\n✅ *Action:* Kicked\n👮 *By:* @${sender.split('@')[0]}`;
+      await zanta.sendMessage(from, { text: desc, mentions: [user, sender] }, { quoted: mek });
+  } catch (e) { reply("❌ Error: " + e.message); }
 });
 
-// --- TAGALL COMMAND ---
+// --- ⭐ PROMOTE ---
 cmd({
-    pattern: "tagall",
-    alias: ["all"],
-    react: "🔔",
-    desc: "Tags all members.",
-    category: "group",
-    filename: __filename,
-}, async (zanta, mek, m, { from, reply, isGroup, q }) => {
-    try {
-        if (!isGroup) return reply("❌ This is not a group!");
-        
-        const groupMeta = await zanta.groupMetadata(from);
-        const participants = groupMeta.participants.map(p => p.id);
-        
-        let messageText = `*📢 Tag All Members*\n\n*Message:* ${q || 'No Message'}\n\n`;
-        for (let mem of participants) {
-            messageText += ` @${mem.split('@')[0]}`;
-        }
+  pattern: "promote", react: "⭐", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, reply, isGroup, groupAdmins, sender, isOwner, q }) => {
+  try {
+      if (!isGroup) return reply("❌ *Groups only.*");
+      const perm = checkPerms(zanta, m, groupAdmins, isOwner, sender);
+      if (perm === "bot_not_admin") return reply("❌ *මාව Admin කරන්න!*");
+      if (perm === "not_admin") return reply("❌ *ඔබ Admin කෙනෙක් නෙවෙයි!*");
 
-        await zanta.sendMessage(from, { 
-            text: messageText, 
-            mentions: participants 
-        }, { quoted: mek });
-        
-    } catch (e) {
-        reply("❌ Error: " + e.message);
-    }
+      let user = m.mentionedJid[0] || (m.quoted ? m.quoted.sender : null);
+      if (!user && q) user = q.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+      if (!user) return reply("❌ *Tag, Reply හෝ අංකයක් දෙන්න.*");
+
+      await zanta.groupParticipantsUpdate(from, [user], "promote");
+      let desc = `\n╭━─━─━─━─━─━─━─━╮\n┃    *ADMIN PROMOTE*\n╰━─━─━─━─━─━─━─━╯\n\n👤 *User:* @${user.split('@')[0]}\n⭐ *Status:* New Admin\n👮 *By:* @${sender.split('@')[0]}`;
+      await zanta.sendMessage(from, { text: desc, mentions: [user, sender] }, { quoted: mek });
+  } catch (e) { reply("❌ Error: " + e.message); }
+});
+
+// --- 📉 DEMOTE ---
+cmd({
+  pattern: "demote", react: "📉", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, reply, isGroup, groupAdmins, sender, isOwner, q }) => {
+  try {
+      if (!isGroup) return reply("❌ *Groups only.*");
+      const perm = checkPerms(zanta, m, groupAdmins, isOwner, sender);
+      if (perm === "bot_not_admin") return reply("❌ *මාව Admin කරන්න!*");
+      if (perm === "not_admin") return reply("❌ *ඔබ Admin කෙනෙක් නෙවෙයි!*");
+
+      let user = m.mentionedJid[0] || (m.quoted ? m.quoted.sender : null);
+      if (!user && q) user = q.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+      if (!user) return reply("❌ *Tag, Reply හෝ අංකයක් දෙන්න.*");
+
+      await zanta.groupParticipantsUpdate(from, [user], "demote");
+      let desc = `\n╭━─━─━─━─━─━─━─━╮\n┃    *ADMIN DEMOTE*\n╰━─━─━─━─━─━─━─━╯\n\n👤 *User:* @${user.split('@')[0]}\n📉 *Status:* Admin Removed\n👮 *By:* @${sender.split('@')[0]}`;
+      await zanta.sendMessage(from, { text: desc, mentions: [user, sender] }, { quoted: mek });
+  } catch (e) { reply("❌ Error: " + e.message); }
+});
+
+// --- ➕ ADD MEMBER ---
+cmd({
+    pattern: "add", react: "➕", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, reply, isGroup, groupAdmins, sender, isOwner, q }) => {
+    if (!isGroup) return reply("❌ *Groups only.*");
+    const perm = checkPerms(zanta, m, groupAdmins, isOwner, sender);
+    if (perm === "bot_not_admin") return reply("❌ *මාව Admin කරන්න!*");
+    if (perm === "not_admin") return reply("❌ *ඔබ Admin කෙනෙක් නෙවෙයි!*");
+
+    if (!q) return reply("❌ *අංකය ලබා දෙන්න (Ex: .add 947xxxxxxxx).*");
+    let user = q.replace(/[^0-9]/g, "") + "@s.whatsapp.net";
+
+    try {
+        await zanta.groupParticipantsUpdate(from, [user], "add");
+        let desc = `\n╭━─━─━─━─━─━─━─━╮\n┃    *MEMBER ADDED*\n╰━─━─━─━─━─━─━─━╯\n\n👤 *User:* @${user.split('@')[0]}\n✅ *Status:* Added Success\n👮 *By:* @${sender.split('@')[0]}`;
+        await zanta.sendMessage(from, { text: desc, mentions: [user, sender] }, { quoted: mek });
+    } catch (e) { reply("❌ එක් කිරීමට නොහැක. (Privacy Settings හෝ අංකය වැරදියි)"); }
+});
+
+// --- 🔗 INVITE ---
+cmd({
+  pattern: "invite", alias: ["link"], react: "🔗", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, reply, isGroup, groupMetadata, groupAdmins }) => {
+  try {
+      if (!isGroup) return reply("❌ *Groups only.*");
+      const adminDigitsList = (groupAdmins || []).map(ad => getLastDigits(ad));
+      const botDigits = getLastDigits(zanta.user.lid || zanta.user.id);
+
+      if (!adminDigitsList.includes(botDigits)) return reply("❌ *මාව Admin කරන්න!*");
+
+      const code = await zanta.groupInviteCode(from);
+      let ppUrl;
+      try { ppUrl = await zanta.profilePictureUrl(from, 'image'); } catch { ppUrl = "https://store-images.s-microsoft.com/image/apps.8453.13655054093851568.4a371b72-2ce8-4bdb-9d83-be49894d3fa0.7f3687b9-847d-4f86-bb5c-c73259e2b38e?h=210"; }
+
+      let desc = `\n╭━─━─━─━─━─━─━─━╮\n┃    *GROUP INVITE*\n╰━─━─━─━─━─━─━─━╯\n\n🎬 *Group:* ${groupMetadata.subject}\n🔗 *Link:* https://chat.whatsapp.com/${code}\n\n_Join using the link above!_`;
+      await zanta.sendMessage(from, { image: { url: ppUrl }, caption: desc }, { quoted: mek });
+  } catch (e) { reply("❌ Error: " + e.message); }
+});
+
+// --- 🔔 TAGALL ---
+cmd({
+    pattern: "tagall", alias: ["all"], react: "📢", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, reply, isGroup, participants, groupAdmins, sender, isOwner, q }) => {
+    if (!isGroup) return reply("❌ *Groups only.*");
+    const perm = checkPerms(zanta, m, groupAdmins, isOwner, sender);
+    if (perm === "not_admin") return reply("❌ *Admin Only!*");
+
+    let txt = `\n╭━─━─━─━─━─━─━─━╮\n┃    *📢 TAG ALL MEMBERS*\n╰━─━─━─━─━─━─━─━╯\n\n📢 *Message:* ${q ? q : 'No message'}\n\n`;
+    for (let mem of participants) { txt += `🔘 @${mem.id.split('@')[0]}\n`; }
+    await zanta.sendMessage(from, { text: txt, mentions: participants.map(p => p.id) }, { quoted: mek });
+});
+
+// --- 👋 LEFT ---
+cmd({
+    pattern: "left", react: "👋", category: "group", filename: __filename,
+}, async (zanta, mek, m, { from, isGroup, isOwner, reply }) => {
+    if (!isGroup) return reply("❌ *Groups only.*");
+    if (!isOwner) return reply("❌ *Owner Only!*");
+    await reply("👋 *Goodbye! Leaving the group...*");
+    await zanta.groupLeave(from);
 });
